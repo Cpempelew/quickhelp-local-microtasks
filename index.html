@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuickHelp</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --bg:#0d0d0f;--s1:#161618;--s2:#1f1f22;--s3:#2a2a2e;
+  --brd:#2e2e33;--acc:#f5c842;--acc2:#e8a820;
+  --txt:#f0ede8;--mut:#7a7a85;
+  --ok:#4caf82;--err:#e05555;--info:#4a9eff;--warn:#f59e0b;
+  --r:12px;--fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:15px}
+.page{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .3s}
+.page.active{opacity:1;pointer-events:all}
+#toast{position:fixed;top:18px;right:18px;z-index:9999;background:var(--s2);border:1px solid var(--brd);border-radius:var(--r);padding:13px 18px;font-size:13px;max-width:300px;transform:translateY(-60px);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none;}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.ok{border-left:3px solid var(--ok)}
+#toast.err{border-left:3px solid var(--err)}
+#toast.info{border-left:3px solid var(--info)}
+#toast.warn{border-left:3px solid var(--warn)}
+.spin{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--brd);border-top-color:var(--acc);animation:rot .6s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px}
+input,select,textarea{width:100%;padding:12px 14px;background:var(--s2);border:1px solid var(--brd);border-radius:var(--r);color:var(--txt);font-family:var(--fb);font-size:14px;outline:none;transition:border .2s;}
+input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+select option{background:var(--s2)}
+textarea{resize:vertical;min-height:80px}
+label{font-size:11px;color:var(--mut);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.field{display:flex;flex-direction:column;gap:5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{padding:12px 22px;border:none;border-radius:var(--r);font-family:var(--fh);font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+.btn-y{background:var(--acc);color:#000;width:100%}
+.btn-y:hover{background:var(--acc2);transform:translateY(-1px)}
+.btn-g{background:var(--s3);color:var(--txt);border:1px solid var(--brd)}
+.btn-g:hover{border-color:var(--acc);color:var(--acc)}
+.btn-ok{background:var(--ok);color:#fff;width:100%}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:8px}
+.btn-xs{padding:5px 10px;font-size:11px;border-radius:6px;border:none;cursor:pointer;font-family:var(--fh);font-weight:700}
+nav{height:56px;background:var(--s1);border-bottom:1px solid var(--brd);padding:0 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:200;}
+.logo{font-family:var(--fh);font-size:20px;font-weight:800}
+.logo span{color:var(--acc)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--acc);color:#000;font-family:var(--fh);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s;}
+.avatar:hover{transform:scale(1.1)}
+.scroll{flex:1;overflow-y:auto;padding:20px}
+.scroll::-webkit-scrollbar{width:4px}
+.scroll::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+/* AUTH */
+#p-auth{align-items:center;justify-content:center;background:var(--bg);}
+#p-auth::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 55% 45% at 65% 35%,rgba(245,200,66,.07) 0%,transparent 65%);}
+.auth-box{background:var(--s1);border:1px solid var(--brd);border-radius:20px;padding:34px 38px;width:100%;max-width:400px;position:relative;z-index:1;}
+.auth-logo{font-family:var(--fh);font-size:34px;font-weight:800;margin-bottom:4px}
+.auth-logo span{color:var(--acc)}
+.auth-sub{color:var(--mut);font-size:13px;margin-bottom:28px}
+.tabs{display:flex;gap:3px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:24px}
+.tab{flex:1;padding:8px;border:none;background:none;color:var(--mut);font-family:var(--fh);font-size:13px;font-weight:700;border-radius:7px;cursor:pointer;transition:all .2s}
+.tab.on{background:var(--acc);color:#000}
+.form{display:flex;flex-direction:column;gap:14px}
+.hint{text-align:center;font-size:11px;color:var(--mut);margin-top:2px}
+.hint b{color:var(--txt)}
+/* MENU */
+.menu-hero{background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--brd);border-radius:20px;padding:24px 28px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.menu-hero h2{font-family:var(--fh);font-size:22px;font-weight:800;margin-bottom:4px}
+.stat-pill{background:rgba(245,200,66,.12);border:1px solid rgba(245,200,66,.25);border-radius:10px;padding:10px 16px;text-align:center;}
+.stat-v{font-family:var(--fh);font-size:24px;font-weight:800;color:var(--acc)}
+.stat-l{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.menu-card{background:var(--s1);border:1px solid var(--brd);border-radius:18px;padding:22px 18px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:10px;}
+.menu-card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.mc-icon{font-size:26px}
+.mc-title{font-family:var(--fh);font-size:15px;font-weight:700}
+.mc-desc{font-size:12px;color:var(--mut);line-height:1.5}
+/* CARTE */
+#p-map{overflow:hidden}
+#map{flex:1;z-index:1}
+.map-panel{position:absolute;bottom:0;left:0;right:0;z-index:400;background:var(--s1);border-top:1px solid var(--brd);border-radius:20px 20px 0 0;padding:16px 20px;max-height:52vh;overflow-y:auto;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);}
+.map-panel.open{transform:translateY(0)}
+.panel-handle{width:36px;height:3px;background:var(--brd);border-radius:2px;margin:0 auto 14px;cursor:pointer}
+.map-bar{position:absolute;top:66px;left:12px;right:56px;z-index:400;display:flex;gap:8px;}
+.map-bar select{flex:1;background:var(--s1);border:1px solid var(--brd);border-radius:10px;color:var(--txt);font-family:var(--fb);font-size:13px;padding:8px 12px;}
+.map-bar button{background:var(--s1);border:1px solid var(--brd);border-radius:10px;color:var(--txt);font-family:var(--fh);font-size:13px;font-weight:700;padding:8px 12px;cursor:pointer;}
+.gps-btn{position:absolute;top:66px;right:12px;z-index:400;background:var(--acc);border:none;border-radius:10px;font-size:16px;padding:8px 10px;cursor:pointer;}
+.route-info{position:absolute;top:112px;left:12px;z-index:400;background:var(--s1);border:1px solid var(--acc);border-radius:12px;padding:10px 14px;font-size:13px;display:none;}
+.route-info.show{display:block}
+/* CARD générique */
+.card{background:var(--s1);border:1px solid var(--brd);border-radius:18px;padding:22px 24px;margin-bottom:16px}
+.card h3{font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:16px}
+.ai-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(245,200,66,.12);border:1px solid rgba(245,200,66,.3);border-radius:8px;color:var(--acc);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:8px;width:fit-content;}
+.ai-btn:hover{background:rgba(245,200,66,.2)}
+/* PROFIL */
+.profil-head{background:var(--s1);border:1px solid var(--brd);border-radius:18px;padding:22px;display:flex;gap:18px;align-items:center;margin-bottom:14px;}
+.profil-av{width:64px;height:64px;border-radius:50%;background:var(--acc);color:#000;font-family:var(--fh);font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.profil-info h2{font-family:var(--fh);font-size:20px;font-weight:800}
+.profil-info p{color:var(--mut);font-size:13px;margin-top:3px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 9px;border-radius:20px;margin-top:6px}
+.b-ok{background:rgba(76,175,130,.15);color:var(--ok)}
+.b-no{background:rgba(224,85,85,.1);color:var(--err)}
+.ptabs{display:flex;gap:3px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:14px}
+.ptab{flex:1;padding:8px;border:none;background:none;color:var(--mut);font-family:var(--fh);font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;transition:all .2s;text-align:center}
+.ptab.on{background:var(--acc);color:#000}
+.mission-row{background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.m-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.m-bot{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.role-tag{font-size:10px;text-transform:uppercase;padding:3px 7px;border-radius:5px;flex-shrink:0}
+.r-dem{background:rgba(245,200,66,.12);color:var(--acc)}
+.r-exe{background:rgba(76,175,130,.12);color:var(--ok)}
+.s-pill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+.sp-pub{background:rgba(120,120,140,.15);color:var(--mut)}
+.sp-acc{background:rgba(245,200,66,.15);color:var(--acc)}
+.sp-enc{background:rgba(74,158,255,.15);color:var(--info)}
+.sp-ter{background:rgba(76,175,130,.15);color:var(--ok)}
+.sp-ann{background:rgba(224,85,85,.1);color:var(--err)}
+.avis-card{background:var(--s2);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:8px}
+/* WALLET */
+.wallet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.wallet-card{background:var(--s1);border:1px solid var(--brd);border-radius:14px;padding:14px;text-align:center}
+.wallet-val{font-family:var(--fh);font-size:20px;font-weight:800}
+.wallet-lbl{font-size:11px;color:var(--mut);margin-top:4px}
+.tx-row{background:var(--s1);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;padding:20px;}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--s1);border:1px solid var(--brd);border-radius:20px;padding:28px 32px;width:100%;max-width:460px;transform:scale(.95);transition:transform .25s;max-height:88vh;overflow-y:auto;}
+.overlay.open .modal{transform:scale(1)}
+.modal h3{font-family:var(--fh);font-size:20px;font-weight:800;margin-bottom:18px}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.stars-row{display:flex;gap:8px;margin-top:6px}
+.star{font-size:28px;cursor:pointer;transition:transform .15s;filter:grayscale(1) opacity(.4)}
+.star.on{filter:none;transform:scale(1.05)}
+.pay-box{background:var(--s2);border:1px solid var(--brd);border-radius:14px;padding:16px;margin:14px 0}
+.pay-row{display:flex;justify-content:space-between;font-size:14px;padding:7px 0;border-bottom:1px solid var(--brd)}
+.pay-row:last-child{border:none;font-size:16px;font-weight:700;padding-top:12px}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.anim{animation:up .3s ease both}
+.leaflet-container{background:#1a1a1e !important}
+
+/* NOTIF BADGE */
+.notif-badge{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:8000;
+  background:var(--s1);border:1px solid var(--acc);border-radius:14px;padding:12px 20px;
+  font-size:13px;font-weight:600;max-width:340px;text-align:center;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);pointer-events:none;
+  animation:notifIn .4s cubic-bezier(.4,0,.2,1) both;}
+@keyframes notifIn{from{opacity:0;top:-20px}to{opacity:1;top:14px}}
+
+/* DEMO GUIDE */
+.demo-fab{position:fixed;bottom:24px;right:24px;z-index:5000;
+  background:var(--acc);color:#000;border:none;border-radius:50%;
+  width:52px;height:52px;font-size:22px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(245,200,66,.4);transition:transform .2s;}
+.demo-fab:hover{transform:scale(1.1)}
+.demo-panel{position:fixed;bottom:90px;right:24px;z-index:5000;
+  background:var(--s1);border:1px solid var(--acc);border-radius:18px;
+  padding:20px;width:320px;max-height:70vh;overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);display:none;}
+.demo-panel.open{display:block}
+.demo-step{background:var(--s2);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer;transition:border .2s;}
+.demo-step:hover{border-color:var(--acc)}
+.demo-step.active{border-color:var(--acc);background:rgba(245,200,66,.06)}
+.demo-step-num{display:inline-block;background:var(--acc);color:#000;border-radius:50%;width:22px;height:22px;font-size:11px;font-weight:800;text-align:center;line-height:22px;margin-right:8px;flex-shrink:0}
+.demo-step-title{font-family:var(--fh);font-size:13px;font-weight:700}
+.demo-step-say{font-size:11px;color:var(--acc);margin-top:4px;font-style:italic;line-height:1.4}
+.demo-step-do{font-size:11px;color:var(--mut);margin-top:3px;line-height:1.4}
+
+/* ADMIN */
+.admin-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.admin-stat{background:var(--s1);border:1px solid var(--brd);border-radius:14px;padding:14px;text-align:center}
+.admin-stat-v{font-family:var(--fh);font-size:22px;font-weight:800}
+.admin-stat-l{font-size:10px;color:var(--mut);margin-top:3px;text-transform:uppercase}
+.admin-tabs{display:flex;gap:3px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:14px}
+.admin-tab{flex:1;padding:8px;border:none;background:none;color:var(--mut);font-family:var(--fh);font-size:11px;font-weight:700;border-radius:7px;cursor:pointer;transition:all .2s;text-align:center}
+.admin-tab.on{background:var(--s3);color:var(--acc);border:1px solid var(--brd)}
+.admin-row{background:var(--s1);border:1px solid var(--brd);border-radius:10px;padding:11px 14px;margin-bottom:6px;font-size:13px}
+.admin-badge{font-size:10px;padding:2px 7px;border-radius:5px;font-weight:700}
+
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="p-auth" class="page active">
+  <div class="auth-box anim">
+    <div class="auth-logo">Quick<span>Help</span></div>
+    <p class="auth-sub">Micro-tâches de proximité · Simple · Rapide · Local</p>
+    <div class="tabs">
+      <button class="tab on" onclick="authTab('login')">Connexion</button>
+      <button class="tab" onclick="authTab('register')">Inscription</button>
+    </div>
+    <div id="f-login" class="form">
+      <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="sophie.martin@email.fr"></div>
+      <div class="field"><label>Mot de passe</label><input type="password" id="l-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-y" onclick="doLogin()">Se connecter →</button>
+      <p class="hint">Compte test : <b>sophie.martin@email.fr</b> / <b>password123</b></p>
+    </div>
+    <div id="f-reg" class="form" style="display:none">
+      <div class="row2">
+        <div class="field"><label>Prénom</label><input type="text" id="r-prenom" placeholder="Sophie"></div>
+        <div class="field"><label>Nom</label><input type="text" id="r-nom" placeholder="Martin"></div>
+      </div>
+      <div class="field"><label>Email</label><input type="email" id="r-email" placeholder="sophie@email.fr"></div>
+      <div class="field"><label>Mot de passe</label><input type="password" id="r-pwd" placeholder="Minimum 6 caractères"></div>
+      <div class="field"><label>Téléphone (optionnel)</label><input type="tel" id="r-tel" placeholder="06 12 34 56 78"></div>
+      <button class="btn btn-y" onclick="doRegister()">Créer mon compte →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MENU -->
+<div id="p-menu" class="page">
+  <nav>
+    <div class="logo">Quick<span>Help</span></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="nav-name" style="font-size:13px;color:var(--mut)"></span>
+      <div class="avatar" id="nav-av" onclick="go('profil')"></div>
+    </div>
+  </nav>
+  <div class="scroll" style="max-width:640px;margin:0 auto;width:100%">
+    <div class="menu-hero anim">
+      <div>
+        <h2>Bonjour, <span id="hero-name" style="color:var(--acc)"></span> 👋</h2>
+        <p style="color:var(--mut);font-size:13px">Que voulez-vous faire aujourd'hui ?</p>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-v" id="m-note">—</div>
+        <div class="stat-l">Ma note</div>
+      </div>
+    </div>
+    <div class="menu-grid anim">
+      <div class="menu-card" onclick="go('map')">
+        <div class="mc-icon">🗺️</div>
+        <div class="mc-title">Chercher une mission</div>
+        <div class="mc-desc">Voir les tâches disponibles autour de moi</div>
+      </div>
+      <div class="menu-card" onclick="go('proposer')">
+        <div class="mc-icon">✏️</div>
+        <div class="mc-title">Proposer une mission</div>
+        <div class="mc-desc">Publier une micro-tâche avec aide IA</div>
+      </div>
+      <div class="menu-card" onclick="go('profil')">
+        <div class="mc-icon">👤</div>
+        <div class="mc-title">Mon profil</div>
+        <div class="mc-desc">Missions, avis reçus, historique</div>
+      </div>
+      <div class="menu-card" onclick="go('wallet')">
+        <div class="mc-icon">💰</div>
+        <div class="mc-title">Mon portefeuille</div>
+        <div class="mc-desc">Solde, transactions, paiements</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CARTE -->
+<div id="p-map" class="page">
+  <nav>
+    <button class="btn btn-g btn-sm" onclick="go('menu')" style="width:auto">← Retour</button>
+    <div class="logo">Quick<span>Help</span></div>
+    <div class="avatar" id="map-av"></div>
+  </nav>
+  <div id="map"></div>
+  <div class="map-bar">
+    <select id="rayon" onchange="loadMapTaches()">
+      <option value="1">1 km</option>
+      <option value="3">3 km</option>
+      <option value="5">5 km</option>
+      <option value="10" selected>10 km</option>
+      <option value="50">Tout</option>
+    </select>
+    <button onclick="loadMapTaches()" title="Rafraîchir">↻</button>
+  </div>
+  <button class="gps-btn" onclick="centerOnMe()" title="Ma position">📍</button>
+  <div class="route-info" id="route-info"></div>
+  <div class="map-panel" id="map-panel">
+    <div class="panel-handle" onclick="document.getElementById('map-panel').classList.remove('open')"></div>
+    <div id="panel-body"></div>
+  </div>
+</div>
+
+<!-- PROPOSER -->
+<div id="p-proposer" class="page">
+  <nav>
+    <button class="btn btn-g btn-sm" onclick="go('menu')" style="width:auto">← Retour</button>
+    <div class="logo">Quick<span>Help</span></div>
+    <div class="avatar" id="prop-av"></div>
+  </nav>
+  <div class="scroll" style="max-width:580px;margin:0 auto;width:100%">
+    <div class="card anim">
+      <h3>✏️ Nouvelle mission</h3>
+      <div class="form">
+        <div class="field">
+          <label>Catégorie (optionnelle)</label>
+          <select id="p-cat" onchange="onCatChange()"><option value="">— Libre ou choisir —</option></select>
+        </div>
+        <div class="field">
+          <label>Titre *</label>
+          <input type="text" id="p-titre" placeholder="Ex: Aide aux devoirs de mathématiques">
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <textarea id="p-desc" placeholder="Décrivez la tâche..."></textarea>
+          <div class="ai-btn" onclick="aiSuggest('mission')">✨ Générer avec l'IA</div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Prix (€) *</label><input type="number" id="p-prix" min="1" max="200" step="0.5" placeholder="10"></div>
+          <div class="field"><label>Durée estimée (min)</label><input type="number" id="p-duree" min="5" max="480" step="5" placeholder="30"></div>
+        </div>
+        <p style="font-size:12px;color:var(--mut)">📍 Ta position GPS sera utilisée pour localiser la mission</p>
+        <button class="btn btn-y" onclick="doPublier()">Publier la mission →</button>
+      </div>
+    </div>
+    <div class="card" style="border-style:dashed;opacity:.75">
+      <h3 style="font-size:14px;color:var(--mut)">⚡ Activer l'IA Claude (optionnel)</h3>
+      <div class="field" style="margin-top:10px">
+        <label>Clé API Anthropic</label>
+        <input type="password" id="api-key" placeholder="sk-ant-..." oninput="localStorage.setItem('qh_key',this.value)">
+      </div>
+      <p style="font-size:11px;color:var(--mut);margin-top:8px">Sans clé, des suggestions prédéfinies intelligentes sont utilisées.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PROFIL -->
+<div id="p-profil" class="page">
+  <nav>
+    <button class="btn btn-g btn-sm" onclick="go('menu')" style="width:auto">← Retour</button>
+    <div class="logo">Quick<span>Help</span></div>
+    <button class="btn btn-g btn-sm" onclick="doLogout()" style="width:auto">Déconnexion</button>
+  </nav>
+  <div class="scroll" style="max-width:600px;margin:0 auto;width:100%">
+    <div id="profil-content"><div class="loader"><div class="spin"></div></div></div>
+  </div>
+</div>
+
+<!-- WALLET -->
+<div id="p-wallet" class="page">
+  <nav>
+    <button class="btn btn-g btn-sm" onclick="go('menu')" style="width:auto">← Retour</button>
+    <div class="logo">Quick<span>Help</span></div>
+    <div style="width:80px"></div>
+  </nav>
+  <div class="scroll" style="max-width:600px;margin:0 auto;width:100%">
+    <div id="wallet-content"><div class="loader"><div class="spin"></div></div></div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="p-admin" class="page">
+  <nav>
+    <button class="btn btn-g btn-sm" onclick="go('menu')" style="width:auto">← Retour</button>
+    <div class="logo">Quick<span>Help</span> <span style="font-size:12px;background:var(--err);color:#fff;padding:2px 8px;border-radius:5px;margin-left:6px">ADMIN</span></div>
+    <div style="width:80px"></div>
+  </nav>
+  <div class="scroll" style="max-width:700px;margin:0 auto;width:100%">
+    <div id="admin-content"><div class="loader"><div class="spin"></div></div></div>
+  </div>
+</div>
+
+<!-- DEMO GUIDE -->
+<button class="demo-fab" id="demo-fab" onclick="toggleDemo()" title="Guide de démo" style="display:none">🎯</button>
+<div class="demo-panel" id="demo-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <span style="font-family:var(--fh);font-size:15px;font-weight:800">🎯 Script de démo</span>
+    <button onclick="toggleDemo()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:18px">×</button>
+  </div>
+  <p style="font-size:11px;color:var(--mut);margin-bottom:12px">Clique sur chaque étape pour voir quoi dire et quoi faire.</p>
+  <div id="demo-steps"></div>
+</div>
+
+<!-- MODAL Détail mission -->
+<div class="overlay" id="ov-detail">
+  <div class="modal">
+    <h3 id="det-titre"></h3>
+    <div id="det-body"></div>
+    <div class="modal-actions" id="det-actions"></div>
+  </div>
+</div>
+
+<!-- MODAL Avis -->
+<div class="overlay" id="ov-avis">
+  <div class="modal">
+    <h3>⭐ Laisser un avis</h3>
+    <div class="form">
+      <div class="field">
+        <label>Note</label>
+        <div class="stars-row" id="stars-input">
+          <span class="star on" onclick="setStar(1)">⭐</span>
+          <span class="star on" onclick="setStar(2)">⭐</span>
+          <span class="star on" onclick="setStar(3)">⭐</span>
+          <span class="star on" onclick="setStar(4)">⭐</span>
+          <span class="star on" onclick="setStar(5)">⭐</span>
+        </div>
+        <p id="star-label" style="font-size:12px;color:var(--acc);margin-top:4px">Excellent !</p>
+      </div>
+      <div class="field">
+        <label>Commentaire (optionnel)</label>
+        <textarea id="avis-txt" placeholder="Décrivez votre expérience..."></textarea>
+        <div class="ai-btn" onclick="aiSuggest('avis')">✨ Générer avec l'IA</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-g" style="flex:1" onclick="closeOv('ov-avis')">Annuler</button>
+      <button class="btn btn-y" style="flex:2;margin:0" onclick="submitAvis()">Publier l'avis →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL Paiement -->
+<div class="overlay" id="ov-paiement">
+  <div class="modal">
+    <h3>💳 Paiement simulé</h3>
+    <div id="pay-body"></div>
+    <div class="modal-actions" id="pay-actions"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API='http://localhost:8000';
+let user=null,leafMap=null,taskMarkers=[],routeLayer=null;
+let currentTask=null,avisNote=5,avisTacheId=null,avisCibleId=null;
+let categories=[],userLat=48.8566,userLon=2.3522;
+const STAR_LBL={1:'Très insatisfait',2:'Insatisfait',3:'Correct',4:'Bien',5:'Excellent !'};
+
+// ── NAVIGATION ──────────────────────────────────────────────
+function go(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('p-'+page).classList.add('active');
+  if(page==='map')     initMap();
+  if(page==='profil')  loadProfil();
+  if(page==='proposer')loadCategories();
+  if(page==='wallet')  loadWallet();
+}
+
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show '+type;
+  setTimeout(()=>t.className='',3500);
+}
+
+// ── AUTH ────────────────────────────────────────────────────
+function authTab(tab){
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',(i===0)===(tab==='login')));
+  document.getElementById('f-login').style.display=tab==='login'?'flex':'none';
+  document.getElementById('f-reg').style.display=tab==='register'?'flex':'none';
+}
+
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pwd=document.getElementById('l-pwd').value;
+  if(!email||!pwd)return toast('Remplis tous les champs','err');
+  try{
+    const r=await fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,mot_de_passe:pwd})});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur de connexion','err');
+    user=d.utilisateur;userLat=user.latitude;userLon=user.longitude;
+    updateUI();toast(d.message,'ok');go('menu');
+  }catch(e){toast('Serveur inaccessible — lance uvicorn !','err');}
+}
+
+async function doRegister(){
+  const prenom=document.getElementById('r-prenom').value.trim();
+  const nom=document.getElementById('r-nom').value.trim();
+  const email=document.getElementById('r-email').value.trim();
+  const pwd=document.getElementById('r-pwd').value;
+  const telephone=document.getElementById('r-tel').value.trim();
+  if(!prenom||!nom||!email||!pwd)return toast('Remplis tous les champs','err');
+  if(pwd.length<6)return toast('Mot de passe trop court (6 min)','err');
+  try{
+    const r=await fetch(API+'/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prenom,nom,email,mot_de_passe:pwd,telephone})});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur','err');
+    toast(d.message+' Tu peux te connecter !','ok');
+    authTab('login');document.getElementById('l-email').value=email;
+  }catch(e){toast('Serveur inaccessible','err');}
+}
+
+function doLogout(){user=null;leafMap=null;document.getElementById('map').innerHTML='';go('auth');}
+
+function updateUI(){
+  if(!user)return;
+  const init=(user.prenom[0]+user.nom[0]).toUpperCase();
+  document.getElementById('nav-name').textContent=user.prenom;
+  ['nav-av','map-av','prop-av'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=init;});
+  document.getElementById('hero-name').textContent=user.prenom;
+  document.getElementById('m-note').textContent=user.nb_avis>0?'⭐ '+user.note_moyenne.toFixed(1):'—';
+  const k=localStorage.getItem('qh_key');
+  const apiEl=document.getElementById('api-key');if(k&&apiEl)apiEl.value=k;
+}
+
+// ── GÉOLOCALISATION ─────────────────────────────────────────
+function getGPS(){
+  return new Promise((res,rej)=>{
+    if(!navigator.geolocation)return rej('no_geo');
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),
+      ()=>rej('denied'),{timeout:6000,maximumAge:60000}
+    );
+  });
+}
+
+async function centerOnMe(){
+  try{
+    const pos=await getGPS();
+    userLat=pos.lat;userLon=pos.lon;
+    if(leafMap)leafMap.setView([userLat,userLon],16);
+    if(user)fetch(`${API}/utilisateurs/${user.id}/position`,{method:'PUT',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({latitude:userLat,longitude:userLon})});
+    toast('📍 Position GPS mise à jour','ok');
+    loadMapTaches();
+  }catch(e){toast('GPS refusé — position par défaut (Paris)','info');}
+}
+
+// ── CARTE ───────────────────────────────────────────────────
+let userMarker=null;
+function initMap(){
+  if(leafMap){leafMap.invalidateSize();return;}
+  leafMap=L.map('map',{zoomControl:true}).setView([userLat,userLon],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafMap);
+  placeUserMarker();
+  getGPS().then(pos=>{
+    userLat=pos.lat;userLon=pos.lon;
+    if(user)fetch(`${API}/utilisateurs/${user.id}/position`,{method:'PUT',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({latitude:userLat,longitude:userLon})});
+    leafMap.setView([userLat,userLon],15);
+    placeUserMarker();
+    loadMapTaches();
+    toast('📍 Position GPS détectée','ok');
+  }).catch(()=>{loadMapTaches();});
+}
+
+function placeUserMarker(){
+  if(userMarker)leafMap.removeLayer(userMarker);
+  const icon=L.divIcon({html:`<div style="width:18px;height:18px;border-radius:50%;background:#4a9eff;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>`,iconSize:[18,18],iconAnchor:[9,9],className:''});
+  userMarker=L.marker([userLat,userLon],{icon}).addTo(leafMap).bindPopup('<b>📍 Ma position</b>');
+}
+
+async function loadMapTaches(){
+  if(!leafMap)return;
+  const rayon=document.getElementById('rayon').value;
+  taskMarkers.forEach(m=>leafMap.removeLayer(m));taskMarkers=[];
+  if(routeLayer){leafMap.removeLayer(routeLayer);routeLayer=null;}
+  document.getElementById('route-info').classList.remove('show');
+  document.getElementById('map-panel').classList.remove('open');
+  try{
+    const r=await fetch(`${API}/taches?user_lat=${userLat}&user_lon=${userLon}&rayon_km=${rayon}`);
+    const d=await r.json();
+    d.taches.forEach(t=>{
+      const col=t.prix>=10?'#4caf82':t.prix>=5?'#f5c842':'#4a9eff';
+      const icon=L.divIcon({
+        html:`<div style="min-width:42px;height:26px;border-radius:13px;background:${col};border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#000;padding:0 8px;box-shadow:0 3px 8px rgba(0,0,0,.5);cursor:pointer;white-space:nowrap">${t.prix.toFixed(0)}€</div>`,
+        iconSize:[42,26],iconAnchor:[21,13],className:''
+      });
+      const m=L.marker([t.latitude,t.longitude],{icon}).addTo(leafMap).on('click',()=>showTaskPanel(t));
+      taskMarkers.push(m);
+    });
+    if(d.total===0)toast('Aucune mission dans ce rayon — élargis le filtre','info');
+    else toast(`${d.total} mission${d.total>1?'s':''} disponible${d.total>1?'s':''}`, 'info');
+  }catch(e){toast('Erreur de chargement de la carte','err');}
+}
+
+function showTaskPanel(t){
+  currentTask=t;
+  const isMine=user&&t.demandeur_id===user.id;
+  document.getElementById('panel-body').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div style="flex:1;min-width:0">
+        <span style="font-size:11px;color:var(--acc);background:rgba(245,200,66,.12);padding:3px 8px;border-radius:5px">${t.cat_nom||'Mission libre'}</span>
+        <h3 style="font-family:var(--fh);font-size:16px;font-weight:800;margin-top:6px;line-height:1.2">${t.titre}</h3>
+      </div>
+      <span style="font-family:var(--fh);font-size:22px;font-weight:800;color:var(--acc);margin-left:12px;flex-shrink:0">${t.prix.toFixed(2)} €</span>
+    </div>
+    <p style="font-size:13px;color:var(--mut);margin-bottom:12px;line-height:1.5">${t.description||'Pas de description.'}</p>
+    <div style="display:flex;gap:8px;font-size:12px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="background:var(--s2);padding:4px 10px;border-radius:20px">📍 ${t.distance_km} km</span>
+      <span style="background:var(--s2);padding:4px 10px;border-radius:20px">👤 ${t.dem_prenom}${t.dem_note>0?' ⭐'+t.dem_note.toFixed(1):''}</span>
+      ${t.duree?`<span style="background:var(--s2);padding:4px 10px;border-radius:20px">⏱ ~${t.duree} min</span>`:''}
+      <span style="background:rgba(76,175,130,.12);color:var(--ok);padding:4px 10px;border-radius:20px">💰 Tu reçois ${(t.prix*.9).toFixed(2)} €</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g" style="flex:1;padding:10px;font-size:13px" onclick="calcRoute(${t.latitude},${t.longitude})">🗺️ Itinéraire</button>
+      ${!isMine
+        ?`<button class="btn btn-y" style="flex:2;margin:0;padding:10px;font-size:13px" onclick="openDetail(${t.id})">Voir & Accepter →</button>`
+        :`<span style="color:var(--mut);font-size:12px;align-self:center;text-align:center;flex:2">C'est votre mission</span>`}
+    </div>`;
+  document.getElementById('map-panel').classList.add('open');
+  leafMap.setView([t.latitude,t.longitude],15);
+}
+
+async function calcRoute(tLat,tLon){
+  toast('Calcul de l\'itinéraire…','info');
+  try{
+    const url=`https://router.project-osrm.org/route/v1/foot/${userLon},${userLat};${tLon},${tLat}?overview=full&geometries=geojson`;
+    const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    if(!r.ok)throw new Error();
+    const d=await r.json();
+    if(!d.routes||!d.routes.length)throw new Error();
+    const route=d.routes[0];
+    const dist=(route.distance/1000).toFixed(1);
+    const mins=Math.ceil(route.duration/60);
+    if(routeLayer)leafMap.removeLayer(routeLayer);
+    routeLayer=L.geoJSON(route.geometry,{style:{color:'#f5c842',weight:5,opacity:.9,dashArray:'8,4'}}).addTo(leafMap);
+    leafMap.fitBounds(routeLayer.getBounds(),{padding:[50,50]});
+    const info=document.getElementById('route-info');
+    info.innerHTML=`🚶 <b>${dist} km</b> · <b>~${mins} min</b> à pied`;
+    info.classList.add('show');
+    toast(`Itinéraire : ${dist} km — ~${mins} min`,'ok');
+  }catch(e){
+    // Fallback : ligne droite
+    if(routeLayer)leafMap.removeLayer(routeLayer);
+    routeLayer=L.polyline([[userLat,userLon],[tLat,tLon]],{color:'#f5c842',weight:3,dashArray:'6,6',opacity:.8}).addTo(leafMap);
+    leafMap.fitBounds([[userLat,userLon],[tLat,tLon]],{padding:[50,50]});
+    const info=document.getElementById('route-info');
+    info.innerHTML='📏 Trajet approximatif (vol d\'oiseau)';
+    info.classList.add('show');
+    toast('Itinéraire estimé (mode hors-ligne)','warn');
+  }
+}
+
+function openDetail(id){
+  const t=currentTask;if(!t)return;
+  document.getElementById('det-titre').textContent=t.titre;
+  document.getElementById('det-body').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:var(--acc);background:rgba(245,200,66,.12);padding:3px 8px;border-radius:5px">${t.cat_nom||'Mission libre'}</span>
+        <span style="font-family:var(--fh);font-size:22px;font-weight:800;color:var(--acc)">${t.prix.toFixed(2)} €</span>
+      </div>
+      <p style="color:var(--mut);font-size:14px;line-height:1.6">${t.description||'Pas de description.'}</p>
+      <div class="pay-box">
+        <div class="pay-row"><span>📍 Distance</span><span><b>${t.distance_km} km</b></span></div>
+        <div class="pay-row"><span>👤 Demandeur</span><span><b>${t.dem_prenom} ${t.dem_nom}</b> ${t.dem_note>0?'⭐'+t.dem_note.toFixed(1):''}</span></div>
+        ${t.duree?`<div class="pay-row"><span>⏱ Durée estimée</span><span><b>${t.duree} min</b></span></div>`:''}
+        <div class="pay-row"><span>💰 Tu recevras</span><span style="color:var(--ok)"><b>${(t.prix*.9).toFixed(2)} €</b> <small style="color:var(--mut)">(commission 10%)</small></span></div>
+      </div>
+    </div>`;
+  document.getElementById('det-actions').innerHTML=`
+    <button class="btn btn-g" style="flex:1" onclick="closeOv('ov-detail')">Fermer</button>
+    <button class="btn btn-y" style="flex:2;margin:0" onclick="doAccepter(${t.id})">Accepter la mission →</button>`;
+  openOv('ov-detail');
+}
+
+async function doAccepter(id){
+  if(!user)return;
+  try{
+    const r=await fetch(`${API}/taches/${id}/accepter`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({executant_id:user.id})});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur','err');
+    toast(d.message,'ok');closeOv('ov-detail');
+    document.getElementById('map-panel').classList.remove('open');
+    loadMapTaches();
+  }catch(e){toast('Erreur réseau','err');}
+}
+
+// ── PROPOSER ────────────────────────────────────────────────
+async function loadCategories(){
+  try{
+    const r=await fetch(API+'/categories');
+    const d=await r.json();categories=d.categories;
+    const sel=document.getElementById('p-cat');
+    sel.innerHTML='<option value="">— Libre ou choisir —</option>'+
+      categories.map(c=>`<option value="${c.id}" data-prix="${c.prix_suggere}" data-duree="${c.duree_estimee_min}">${c.nom} — ${c.prix_suggere} €</option>`).join('');
+  }catch(e){}
+}
+
+function onCatChange(){
+  const sel=document.getElementById('p-cat');
+  const opt=sel.options[sel.selectedIndex];
+  if(opt?.dataset.prix)document.getElementById('p-prix').value=opt.dataset.prix;
+  if(opt?.dataset.duree)document.getElementById('p-duree').value=opt.dataset.duree;
+}
+
+async function doPublier(){
+  if(!user)return;
+  const cat=document.getElementById('p-cat').value;
+  const titre=document.getElementById('p-titre').value.trim();
+  const desc=document.getElementById('p-desc').value.trim();
+  const prix=parseFloat(document.getElementById('p-prix').value);
+  const duree=parseInt(document.getElementById('p-duree').value)||null;
+  if(!titre)return toast('Le titre est obligatoire','err');
+  if(!prix||prix<1)return toast('Le prix doit être ≥ 1 €','err');
+  try{
+    const r=await fetch(API+'/taches',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({demandeur_id:user.id,categorie_id:cat?parseInt(cat):null,
+        titre,description:desc,latitude:userLat,longitude:userLon,prix,duree_estimee_min:duree})});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur','err');
+    toast('✅ '+d.message,'ok');
+    ['p-titre','p-desc','p-prix','p-duree'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('p-cat').value='';
+    setTimeout(()=>go('map'),800);
+  }catch(e){toast('Erreur réseau','err');}
+}
+
+// ── PROFIL ───────────────────────────────────────────────────
+async function loadProfil(){
+  if(!user)return;
+  const el=document.getElementById('profil-content');
+  el.innerHTML='<div class="loader"><div class="spin"></div></div>';
+  try{
+    const [rp,ra]=await Promise.all([
+      fetch(`${API}/utilisateurs/${user.id}`),
+      fetch(`${API}/utilisateurs/${user.id}/avis`)
+    ]);
+    const dp=await rp.json(),da=await ra.json();
+    const u=dp.utilisateur;
+
+    function renderTabs(active){
+      ['missions','avis'].forEach(t=>{
+        document.getElementById('ptab-'+t)?.classList.toggle('on',t===active);
+        document.getElementById('tab-'+t) && (document.getElementById('tab-'+t).style.display=t===active?'block':'none');
+      });
+    }
+    window._switchTab=t=>{renderTabs(t);};
+
+    const statClass=s=>({publiee:'pub',acceptee:'acc',en_cours:'enc',terminee:'ter',annulee:'ann'}[s]||'pub');
+
+    const missionsHtml=dp.missions.length===0
+      ?'<p style="color:var(--mut);text-align:center;padding:30px 0">Aucune mission pour l\'instant</p>'
+      :dp.missions.map(m=>{
+        const acts=[];
+        if((m.statut==='acceptee'||m.statut==='en_cours')&&m.role==='demandeur')
+          acts.push(`<button class="btn-xs" style="background:var(--acc);color:#000" onclick="doTerminer(${m.id})">✓ Terminer</button>`);
+        if(m.statut==='acceptee'&&m.role==='executant')
+          acts.push(`<button class="btn-xs" style="background:var(--info);color:#fff" onclick="doDemarrer(${m.id})">▶ Démarrer</button>`);
+        if(m.statut==='terminee'&&!m.avis_deja_laisse&&m.executant_id&&m.role==='demandeur')
+          acts.push(`<button class="btn-xs" style="background:var(--s3);color:var(--acc);border:1px solid var(--brd)" onclick="openAvisModal(${m.id},${m.executant_id})">⭐ Noter</button>`);
+        if(m.statut==='terminee'&&m.avis_deja_laisse)
+          acts.push(`<span style="color:var(--ok);font-size:11px">✓ Noté</span>`);
+        if(m.statut==='terminee'&&m.statut_paiement==='en_attente'&&m.role==='demandeur')
+          acts.push(`<button class="btn-xs" style="background:var(--ok);color:#fff" onclick="ouvrirPaiement(${m.id},${m.prix})">💳 Payer</button>`);
+        return `<div class="mission-row anim">
+          <div class="m-top">
+            <span class="role-tag ${m.role==='demandeur'?'r-dem':'r-exe'}">${m.role==='demandeur'?'Dem.':'Exec.'}</span>
+            <span style="font-size:13px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.titre}</span>
+            <span style="font-family:var(--fh);color:var(--acc);font-size:13px;flex-shrink:0">${parseFloat(m.prix).toFixed(2)} €</span>
+            <span class="s-pill sp-${statClass(m.statut)}">${m.statut.replace('_',' ')}</span>
+          </div>
+          ${acts.length?`<div class="m-bot">${acts.join('')}</div>`:''}
+        </div>`;
+      }).join('');
+
+    const avisHtml=da.avis?.length
+      ?da.avis.map(a=>`<div class="avis-card anim">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <b style="font-size:13px">${a.auteur_prenom} ${a.auteur_nom}</b>
+            <span style="color:var(--acc)">${'⭐'.repeat(a.note)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--mut);margin-bottom:6px">Mission : ${a.tache_titre}</div>
+          ${a.commentaire?`<p style="font-size:13px;line-height:1.5;font-style:italic">"${a.commentaire}"</p>`:''}
+        </div>`).join('')
+      :'<p style="color:var(--mut);text-align:center;padding:20px 0">Aucun avis reçu pour l\'instant</p>';
+
+    el.innerHTML=`
+      <div class="profil-head anim">
+        <div class="profil-av">${(u.prenom[0]+u.nom[0]).toUpperCase()}</div>
+        <div class="profil-info">
+          <h2>${u.prenom} ${u.nom}</h2>
+          <p>${u.email}</p>
+          <span class="badge ${u.est_verifie?'b-ok':'b-no'}">${u.est_verifie?'✓ Compte vérifié':'⚠ Non vérifié'}</span>
+          <div style="margin-top:8px;font-size:14px">
+            <span style="color:var(--acc)">${u.nb_avis>0?'⭐'.repeat(Math.round(u.note_moyenne)):''}</span>
+            <span style="color:var(--mut);margin-left:6px">${u.note_moyenne>0?u.note_moyenne.toFixed(1)+'/5':''} · ${u.nb_avis} avis</span>
+          </div>
+        </div>
+      </div>
+      <div class="ptabs">
+        <button class="ptab on" id="ptab-missions" onclick="_switchTab('missions')">📋 Missions (${dp.missions.length})</button>
+        <button class="ptab" id="ptab-avis" onclick="_switchTab('avis')">⭐ Avis reçus (${da.avis?.length||0})</button>
+      </div>
+      <div id="tab-missions">${missionsHtml}</div>
+      <div id="tab-avis" style="display:none">${avisHtml}</div>`;
+  }catch(e){
+    el.innerHTML='<p style="color:var(--err);text-align:center;padding:30px">Erreur de chargement</p>';
+  }
+}
+
+async function doDemarrer(id){
+  try{
+    const r=await fetch(`${API}/taches/${id}/demarrer`,{method:'PUT'});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur','err');
+    toast(d.message,'ok');loadProfil();
+  }catch(e){toast('Erreur réseau','err');}
+}
+
+async function doTerminer(id){
+  if(!confirm('Confirmer la fin de cette mission ?'))return;
+  try{
+    const r=await fetch(`${API}/taches/${id}/terminer`,{method:'PUT'});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur','err');
+    toast(d.message,'ok');loadProfil();
+  }catch(e){toast('Erreur réseau','err');}
+}
+
+// ── PAIEMENT ────────────────────────────────────────────────
+function ouvrirPaiement(tacheId,prix){
+  const m=parseFloat(prix),c=Math.round(m*10)/100,net=Math.round((m-c)*100)/100;
+  document.getElementById('pay-body').innerHTML=`
+    <p style="color:var(--mut);font-size:13px;margin-bottom:14px">Simulation de paiement sécurisé via QuickHelp</p>
+    <div class="pay-box">
+      <div class="pay-row"><span>Montant total</span><span><b>${m.toFixed(2)} €</b></span></div>
+      <div class="pay-row"><span>Commission plateforme (10%)</span><span style="color:var(--err)">− ${c.toFixed(2)} €</span></div>
+      <div class="pay-row"><span>L'exécutant reçoit</span><span style="color:var(--ok)"><b>${net.toFixed(2)} €</b></span></div>
+    </div>
+    <div style="background:rgba(76,175,130,.08);border:1px solid rgba(76,175,130,.2);border-radius:12px;padding:12px;font-size:12px;color:var(--ok)">
+      🔒 Paiement simulé — aucune transaction bancaire réelle
+    </div>`;
+  document.getElementById('pay-actions').innerHTML=`
+    <button class="btn btn-g" style="flex:1" onclick="closeOv('ov-paiement')">Annuler</button>
+    <button class="btn btn-ok" style="flex:2;margin:0" onclick="confirmerPaiement(${tacheId})">✅ Confirmer le paiement</button>`;
+  openOv('ov-paiement');
+}
+
+async function confirmerPaiement(tacheId){
+  try{
+    const r=await fetch(`${API}/taches/${tacheId}/payer`,{method:'PUT'});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur','err');
+    toast('💰 '+d.message,'ok');closeOv('ov-paiement');loadProfil();
+  }catch(e){toast('Erreur réseau','err');}
+}
+
+// ── WALLET ───────────────────────────────────────────────────
+async function loadWallet(){
+  if(!user)return;
+  const el=document.getElementById('wallet-content');
+  el.innerHTML='<div class="loader"><div class="spin"></div></div>';
+  try{
+    const r=await fetch(`${API}/utilisateurs/${user.id}/wallet`);
+    const d=await r.json();
+    const statLbl={versee:{c:'var(--ok)',l:'Versé'},validee:{c:'var(--info)',l:'Validé'},en_attente:{c:'var(--warn)',l:'En attente'}};
+    const txHtml=d.transactions.length===0
+      ?'<p style="color:var(--mut);text-align:center;padding:20px">Aucune transaction</p>'
+      :d.transactions.map(tx=>{
+        const credit=tx.sens==='credit';
+        const amt=credit?tx.montant_executant:tx.montant_total;
+        const s=statLbl[tx.statut]||statLbl.en_attente;
+        return `<div class="tx-row anim">
+          <div>
+            <div style="font-size:13px;font-weight:600">${tx.titre}</div>
+            <div style="font-size:11px;color:var(--mut);margin-top:2px">${credit?'Revenu':'Dépense'} · <span style="color:${s.c}">${s.l}</span></div>
+          </div>
+          <span style="font-family:var(--fh);font-size:16px;font-weight:800;color:${credit?'var(--ok)':'var(--err)'}">${credit?'+':'−'}${amt.toFixed(2)} €</span>
+        </div>`;
+      }).join('');
+    el.innerHTML=`
+      <div style="font-family:var(--fh);font-size:18px;font-weight:800;margin-bottom:14px">💰 Mon portefeuille</div>
+      <div class="wallet-grid anim">
+        <div class="wallet-card"><div class="wallet-val" style="color:var(--ok)">+${d.solde.toFixed(2)} €</div><div class="wallet-lbl">Solde gagné</div></div>
+        <div class="wallet-card"><div class="wallet-val" style="color:var(--warn)">${d.en_attente.toFixed(2)} €</div><div class="wallet-lbl">En attente</div></div>
+        <div class="wallet-card"><div class="wallet-val" style="color:var(--err)">−${d.depense.toFixed(2)} €</div><div class="wallet-lbl">Dépensé</div></div>
+      </div>
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:10px">Dernières transactions</div>
+      ${txHtml}
+      <div style="background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2);border-radius:12px;padding:12px;margin-top:14px;font-size:12px;color:var(--info);text-align:center">
+        🔒 Transactions simulées — enregistrées en base de données à des fins de démonstration
+      </div>`;
+  }catch(e){
+    el.innerHTML='<p style="color:var(--err);text-align:center;padding:30px">Erreur de chargement</p>';
+  }
+}
+
+// ── AVIS ────────────────────────────────────────────────────
+function openAvisModal(tacheId,cibleId){
+  avisTacheId=tacheId;avisCibleId=cibleId;avisNote=5;
+  document.getElementById('avis-txt').value='';
+  setStar(5);openOv('ov-avis');
+}
+
+function setStar(n){
+  avisNote=n;
+  document.querySelectorAll('#stars-input .star').forEach((s,i)=>s.classList.toggle('on',i<n));
+  document.getElementById('star-label').textContent=STAR_LBL[n]||'';
+}
+
+async function submitAvis(){
+  if(!user||!avisTacheId||!avisCibleId)return toast('Données manquantes','err');
+  const txt=document.getElementById('avis-txt').value.trim();
+  try{
+    const r=await fetch(API+'/avis',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tache_id:avisTacheId,auteur_id:user.id,cible_id:avisCibleId,note:avisNote,commentaire:txt})});
+    const d=await r.json();
+    if(!r.ok)return toast(d.detail||'Erreur','err');
+    toast(d.message,'ok');closeOv('ov-avis');loadProfil();
+  }catch(e){toast('Erreur réseau','err');}
+}
+
+// ── IA ──────────────────────────────────────────────────────
+async function aiSuggest(type){
+  const apiKey=localStorage.getItem('qh_key')||document.getElementById('api-key')?.value||'';
+  let context='';
+  if(type==='mission'){
+    const cat=document.getElementById('p-cat');
+    context=(cat.options[cat.selectedIndex]?.text||'')+' '+document.getElementById('p-titre').value.trim();
+  }else{context=currentTask?.cat_nom||currentTask?.titre||'micro-tâche';}
+  toast('✨ Génération en cours…','info');
+  try{
+    const r=await fetch(API+'/api/suggest',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type,context,note:avisNote,api_key:apiKey||null})});
+    const d=await r.json();
+    if(!d.success)return toast('Erreur IA','err');
+    if(type==='mission')document.getElementById('p-desc').value=d.text;
+    else document.getElementById('avis-txt').value=d.text;
+    toast(`✨ Texte généré (${d.source==='claude'?'Claude IA':'suggestion'})`,'ok');
+  }catch(e){toast('Erreur IA','err');}
+}
+
+// ── NOTIFICATIONS POLLING ───────────────────────────────────
+let notifInterval=null,shownNotifs=new Set();
+function startNotifPolling(){
+  if(notifInterval)clearInterval(notifInterval);
+  notifInterval=setInterval(pollNotifs,8000);
+}
+async function pollNotifs(){
+  if(!user)return;
+  try{
+    const r=await fetch(`${API}/notifications/${user.id}`);
+    const d=await r.json();
+    d.notifications.forEach(n=>{
+      const key=`${n.type}-${n.tache_id}`;
+      if(!shownNotifs.has(key)){shownNotifs.add(key);showNotifBadge(n.msg);}
+    });
+  }catch(e){}
+}
+function showNotifBadge(msg){
+  const ex=document.querySelector('.notif-badge');if(ex)ex.remove();
+  const el=document.createElement('div');el.className='notif-badge';el.textContent=msg;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),5000);
+}
+
+// ── DEMO GUIDE ───────────────────────────────────────────────
+const DEMO_STEPS=[
+  {title:"Présentation",say:"QuickHelp met en relation une personne ayant un besoin ponctuel avec une personne disponible à proximité, rapidement et simplement.",do:"Montrer la page de connexion"},
+  {title:"Connexion",say:"L'utilisateur se connecte avec email et mot de passe. Ici Sophie Martin, notre utilisatrice de test.",do:"Saisir sophie.martin@email.fr / password123 — cliquer Se connecter"},
+  {title:"Menu principal",say:"Après connexion, Sophie accède au menu principal. Elle voit sa note, et 4 actions : chercher, publier, profil et portefeuille.",do:"Montrer le menu et pointer les 4 cartes"},
+  {title:"Carte géolocalisée",say:"La carte affiche en temps réel toutes les missions disponibles autour de l'utilisateur. Chaque pastille représente le prix d'une mission.",do:"Cliquer Chercher une mission — montrer les pastilles de couleur"},
+  {title:"Détail et itinéraire",say:"En cliquant sur une mission, on voit la description, la distance, la durée estimée, et le montant net après commission. L'itinéraire à pied est calculé via OpenStreetMap.",do:"Cliquer une pastille — cliquer Itinéraire — montrer le trajet"},
+  {title:"Publication d'une mission",say:"Sophie publie une mission en direct : aide aux devoirs. Elle peut utiliser l'IA pour générer automatiquement une description professionnelle.",do:"Aller Proposer — remplir le formulaire — cliquer Générer avec l'IA"},
+  {title:"Acceptation",say:"On se connecte avec Paul, à proximité, qui accepte la mission. Le système crée une transaction avec 10% de commission.",do:"Déconnecter — connecter paul.leroy@email.fr / password123 — accepter"},
+  {title:"Terminer et payer",say:"Sophie reçoit une notification. Une fois la mission faite, elle la termine et valide le paiement simulé. Paul reçoit son argent dans son portefeuille.",do:"Reconnecter Sophie — Profil — cliquer Terminer puis Payer"},
+  {title:"Avis étoiles",say:"Sophie note Paul de 1 à 5 étoiles avec commentaire. La note moyenne de Paul est mise à jour automatiquement.",do:"Cliquer ⭐ Noter — 5 étoiles — générer avis IA"},
+  {title:"Portefeuille",say:"Chaque utilisateur a un portefeuille avec solde gagné, paiements en attente et historique complet des transactions.",do:"Aller Mon portefeuille — montrer solde et transactions"},
+  {title:"Conclusion",say:"QuickHelp démontre le cycle complet d'une micro-tâche locale : publication, géolocalisation, paiement simulé et notation. Merci !",do:"Revenir au menu — montrer la carte"},
+];
+let demoOpen=false,demoActive=-1;
+function toggleDemo(){
+  demoOpen=!demoOpen;
+  document.getElementById('demo-panel').classList.toggle('open',demoOpen);
+  if(demoOpen&&!document.getElementById('demo-steps').hasChildNodes())renderDemoSteps();
+}
+function renderDemoSteps(){
+  document.getElementById('demo-steps').innerHTML=DEMO_STEPS.map((s,i)=>`
+    <div class="demo-step" id="dstep-${i}" onclick="selectDemoStep(${i})">
+      <div style="display:flex;align-items:center;margin-bottom:4px">
+        <span class="demo-step-num">${i+1}</span>
+        <span class="demo-step-title">${s.title}</span>
+      </div>
+      <div class="demo-step-say" id="dsay-${i}" style="display:none">💬 "${s.say}"</div>
+      <div class="demo-step-do" id="ddo-${i}" style="display:none">👆 ${s.do}</div>
+    </div>`).join('');
+}
+function selectDemoStep(i){
+  demoActive=demoActive===i?-1:i;
+  DEMO_STEPS.forEach((_,j)=>{
+    document.getElementById('dstep-'+j)?.classList.toggle('active',j===demoActive);
+    const say=document.getElementById('dsay-'+j),ddo=document.getElementById('ddo-'+j);
+    if(say)say.style.display=j===demoActive?'block':'none';
+    if(ddo)ddo.style.display=j===demoActive?'block':'none';
+  });
+}
+
+// ── ADMIN ────────────────────────────────────────────────────
+const ADMIN_EMAIL_JS='admin@quickhelp.fr';
+async function loadAdmin(){
+  const el=document.getElementById('admin-content');
+  el.innerHTML='<div class="loader"><div class="spin"></div></div>';
+  try{
+    const [rs,rm,ru,rt]=await Promise.all([
+      fetch(`${API}/admin/stats`),fetch(`${API}/admin/missions`),
+      fetch(`${API}/admin/utilisateurs`),fetch(`${API}/admin/transactions`)
+    ]);
+    const stats=await rs.json(),missions=await rm.json(),users=await ru.json(),txs=await rt.json();
+    const sc={publiee:'var(--mut)',acceptee:'var(--acc)',en_cours:'var(--info)',terminee:'var(--ok)',annulee:'var(--err)'};
+    const tc={versee:'var(--ok)',validee:'var(--info)',en_attente:'var(--warn)'};
+    window._adminTab=t=>{
+      document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('on'));
+      document.getElementById('atab-'+t).classList.add('on');
+      ['stats','missions','users','txs'].forEach(k=>document.getElementById('admin-'+k).style.display=k===t?'block':'none');
+    };
+    el.innerHTML=`
+      <div style="font-family:var(--fh);font-size:18px;font-weight:800;margin-bottom:14px">🛡️ Tableau de bord admin</div>
+      <div class="admin-tabs">
+        <button class="admin-tab on" id="atab-stats" onclick="_adminTab('stats')">📊 Stats</button>
+        <button class="admin-tab" id="atab-missions" onclick="_adminTab('missions')">📋 Missions (${missions.total})</button>
+        <button class="admin-tab" id="atab-users" onclick="_adminTab('users')">👥 Utilisateurs (${users.total})</button>
+        <button class="admin-tab" id="atab-txs" onclick="_adminTab('txs')">💳 Transactions (${txs.total})</button>
+      </div>
+      <div id="admin-stats">
+        <div class="admin-stat-grid anim">
+          <div class="admin-stat"><div class="admin-stat-v">${stats.nb_users}</div><div class="admin-stat-l">👥 Utilisateurs</div></div>
+          <div class="admin-stat"><div class="admin-stat-v">${stats.nb_taches}</div><div class="admin-stat-l">📋 Missions</div></div>
+          <div class="admin-stat"><div class="admin-stat-v" style="color:var(--ok)">${stats.nb_dispo}</div><div class="admin-stat-l">✅ Disponibles</div></div>
+          <div class="admin-stat"><div class="admin-stat-v" style="color:var(--acc)">${stats.nb_done}</div><div class="admin-stat-l">🏁 Terminées</div></div>
+          <div class="admin-stat"><div class="admin-stat-v" style="color:var(--ok)">${stats.volume_total.toFixed(2)} €</div><div class="admin-stat-l">💰 Volume</div></div>
+          <div class="admin-stat"><div class="admin-stat-v" style="color:var(--warn)">${stats.commissions.toFixed(2)} €</div><div class="admin-stat-l">🏦 Commissions</div></div>
+          <div class="admin-stat"><div class="admin-stat-v">${stats.nb_avis}</div><div class="admin-stat-l">⭐ Avis</div></div>
+          <div class="admin-stat"><div class="admin-stat-v" style="color:var(--acc)">${stats.note_moyenne.toFixed(1)}</div><div class="admin-stat-l">📈 Note moy.</div></div>
+          <div class="admin-stat"><div class="admin-stat-v" style="color:var(--info)">${stats.nb_transactions}</div><div class="admin-stat-l">💳 Transactions</div></div>
+        </div>
+      </div>
+      <div id="admin-missions" style="display:none">
+        ${missions.missions.map(m=>`<div class="admin-row anim" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.titre}</div>
+          <div style="font-size:11px;color:var(--mut)">${m.dem_prenom} ${m.dem_nom}${m.executant_id?' → '+m.exe_prenom+' '+m.exe_nom:''} · ${m.cat_nom||'Libre'}</div></div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <span style="font-family:var(--fh);font-size:13px;color:var(--acc)">${m.prix.toFixed(2)} €</span>
+            <span class="admin-badge" style="color:${sc[m.statut]||'var(--mut)'};background:rgba(255,255,255,.05)">${m.statut}</span>
+          </div></div>`).join('')}
+      </div>
+      <div id="admin-users" style="display:none">
+        ${users.utilisateurs.map(u=>`<div class="admin-row anim" style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-weight:600">${u.prenom} ${u.nom}</div>
+          <div style="font-size:11px;color:var(--mut)">${u.email} · ${u.nb_missions} missions · ⭐ ${u.note_moyenne.toFixed(1)}</div></div>
+          <span class="admin-badge" style="background:${u.est_verifie?'rgba(76,175,130,.15)':'rgba(224,85,85,.1)'};color:${u.est_verifie?'var(--ok)':'var(--err)'}">${u.est_verifie?'Vérifié':'Non vérifié'}</span>
+          </div>`).join('')}
+      </div>
+      <div id="admin-txs" style="display:none">
+        <div style="background:rgba(245,200,66,.08);border:1px solid rgba(245,200,66,.2);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px">
+          💰 Commissions totales : <b style="color:var(--acc)">${txs.total_commissions.toFixed(2)} €</b>
+        </div>
+        ${txs.transactions.map(tx=>`<div class="admin-row anim" style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-weight:600">${tx.titre}</div>
+          <div style="font-size:11px;color:var(--mut)">${tx.dem_prenom} → ${tx.exe_prenom||'?'} · comm. ${tx.commission_plateforme.toFixed(2)} €</div></div>
+          <div style="text-align:right">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--acc)">${tx.montant_total.toFixed(2)} €</div>
+            <span class="admin-badge" style="color:${tc[tx.statut]||'var(--warn)'}">${tx.statut}</span>
+          </div></div>`).join('')}
+      </div>`;
+  }catch(e){el.innerHTML='<p style="color:var(--err);text-align:center;padding:30px">Erreur admin</p>';}
+}
+
+// ── go() override pour demo fab + admin ──────────────────────
+const _goBase=go;
+function go(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('p-'+page).classList.add('active');
+  if(page==='map')     initMap();
+  if(page==='profil')  loadProfil();
+  if(page==='proposer')loadCategories();
+  if(page==='wallet')  loadWallet();
+  if(page==='admin')   loadAdmin();
+  const fab=document.getElementById('demo-fab');
+  if(fab)fab.style.display=(user&&page!=='auth')?'flex':'none';
+}
+
+// ── updateUI override pour admin card + polling ──────────────
+const _updateUIBase=updateUI;
+function updateUI(){
+  if(!user)return;
+  const init=(user.prenom[0]+user.nom[0]).toUpperCase();
+  document.getElementById('nav-name').textContent=user.prenom;
+  ['nav-av','map-av','prop-av'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=init;});
+  document.getElementById('hero-name').textContent=user.prenom;
+  document.getElementById('m-note').textContent=user.nb_avis>0?'⭐ '+user.note_moyenne.toFixed(1):'—';
+  const k=localStorage.getItem('qh_key');const apiEl=document.getElementById('api-key');if(k&&apiEl)apiEl.value=k;
+  // Carte admin si compte admin
+  if(user.email===ADMIN_EMAIL_JS){
+    const grid=document.querySelector('.menu-grid');
+    if(grid&&!document.getElementById('menu-admin-card')){
+      const card=document.createElement('div');
+      card.id='menu-admin-card';card.className='menu-card';card.style.borderColor='var(--err)';
+      card.innerHTML='<div class="mc-icon">🛡️</div><div class="mc-title">Dashboard Admin</div><div class="mc-desc">Stats globales, missions et utilisateurs</div>';
+      card.onclick=()=>go('admin');grid.appendChild(card);
+    }
+  }
+  startNotifPolling();
+}
+
+// ── MODALS ───────────────────────────────────────────────────
+function openOv(id){document.getElementById(id).classList.add('open');}
+function closeOv(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});
+});
+
+window.addEventListener('load',()=>{
+  const k=localStorage.getItem('qh_key');
+  const el=document.getElementById('api-key');if(k&&el)el.value=k;
+});
+</script>
+</body>
+</html>
