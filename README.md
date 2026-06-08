@@ -168,6 +168,42 @@ Base de donnees MySQL
 
 ---
 
+## Apercu du prototype
+
+Cette section permet de comprendre rapidement les principaux parcours de QuickHelp sans lancer l'application.
+
+### Carte interactive des missions
+
+![Carte interactive des missions](./docs/screenshots/interactive-map.png)
+
+La page principale affiche les missions disponibles sur une carte OpenStreetMap. L'utilisateur peut filtrer par rayon, visualiser les marqueurs de missions, consulter la distance estimee et ouvrir une fiche detaillee avec le prix, la categorie, le demandeur et le gain net estime.
+
+### Creation d'une mission
+
+![Creation d'une mission](./docs/screenshots/create-mission.png)
+
+Le formulaire de creation permet de publier une nouvelle micro-tache avec une categorie, un titre, une description, un prix et une duree estimee. La position GPS de l'utilisateur est utilisee pour localiser automatiquement la mission. Une option d'assistance IA peut aider a generer une description.
+
+### Paiement simule
+
+![Paiement simule](./docs/screenshots/simulated-payment.png)
+
+QuickHelp integre un paiement simule pour representer le fonctionnement economique de la plateforme. La modale detaille le montant total, la commission de 10 % et le montant net recu par l'executant. Aucune transaction bancaire reelle n'est effectuee dans ce prototype.
+
+### Systeme d'avis
+
+![Systeme d'avis](./docs/screenshots/review-modal.png)
+
+Apres une mission terminee, un utilisateur peut laisser une note de 1 a 5 etoiles et ajouter un commentaire. Ces avis alimentent ensuite la note moyenne du profil utilisateur et renforcent la confiance entre les membres.
+
+### Tableau de bord administrateur
+
+![Tableau de bord administrateur](./docs/screenshots/admin-dashboard.png)
+
+L'interface administrateur centralise les indicateurs importants du prototype : nombre d'utilisateurs, missions publiees, missions disponibles, missions terminees, volume simule, commissions, avis et transactions. Elle sert a superviser l'activite globale de la plateforme.
+
+---
+
 ## Installation
 
 ### 1. Cloner le projet
