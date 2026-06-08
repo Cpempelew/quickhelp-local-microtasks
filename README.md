@@ -1,6 +1,6 @@
 # QuickHelp
 
-Application web de micro-taches locales developpee dans le cadre du projet P2IP a l'ESILV.
+Application web de micro-taches locales developpee dans le cadre du projet P2IP(Projet d'Inovation à Impact Positif) a l'ESILV.
 
 QuickHelp met en relation des personnes ayant besoin d'aide pour des petites missions du quotidien avec des utilisateurs disponibles a proximite.
 
@@ -426,6 +426,6 @@ Les evolutions envisagees comprennent :
 
 ## Contexte academique
 
-Projet realise dans le cadre du module P2IP, Projet Pluridisciplinaire d'Innovation et de Programmation, a l'ESILV.
+Projet realise dans le cadre du module P2IP, Projet d'Inovation à Impact Positif, a l'ESILV.
 
 Le projet a ete concu, developpe et presente lors du showroom de fin d'annee.
